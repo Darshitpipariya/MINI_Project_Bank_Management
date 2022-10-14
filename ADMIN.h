@@ -8,37 +8,37 @@
 int add_customer(int connFD, int newAccountNumber);
 bool add_account(int connFD);
 bool delete_account(int connFD);
-bool admin_operation_handler(int connFD);
+bool admin_operation(int connFD);
 
-bool admin_operation_handler(int connFD)
+bool admin_operation(int connFD)
 {
 
-    if (login_handler(true, connFD, NULL))
+    if (login(true, connFD, NULL))
     {
-        ssize_t writeBytes, readBytes;            // Number of bytes read from / written to the client
-        char readBuffer[1000], writeBuffer[1000]; // A buffer used for reading & writing to the client
-        bzero(writeBuffer, sizeof(writeBuffer));
-        strcpy(writeBuffer, "Welcome admin!");
+        ssize_t wBytes, rBytes;            // Number of bytes read from / written to the client
+        char rBuffer[1000], wBuffer[1000]; // A buffer used for reading & writing to the client
+        bzero(wBuffer, sizeof(wBuffer));
+        strcpy(wBuffer, "Welcome admin!");
         while (1)
         {
-            strcat(writeBuffer, "\n");
-            strcat(writeBuffer, "1. Get Customer Details\n2. Get Normal Account Details\n3. Get Joint Account Details\n4. Add Account\n5. Delete Account\nPress any other key to logout");
-            writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-            if (writeBytes == -1)
+            strcat(wBuffer, "\n");
+            strcat(wBuffer, "1. Get Customer Details\n2. Get Normal Account Details\n3. Get Joint Account Details\n4. Add Account\n5. Delete Account\nPress any other key to logout");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            if (wBytes == -1)
             {
                 perror("Error while writing ADMIN_MENU to client!");
                 return false;
             }
-            bzero(writeBuffer, sizeof(writeBuffer));
+            bzero(wBuffer, sizeof(wBuffer));
 
-            readBytes = read(connFD, readBuffer, sizeof(readBuffer));
-            if (readBytes == -1)
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+            if (rBytes == -1)
             {
                 perror("Error while reading client's choice for ADMIN_MENU");
                 return false;
             }
 
-            int choice = atoi(readBuffer);
+            int choice = atoi(rBuffer);
             switch (choice)
             {
             case 1:
@@ -57,7 +57,7 @@ bool admin_operation_handler(int connFD)
                 delete_account(connFD);
                 break;
             default:
-                writeBytes = write(connFD, "Logging you out now superman! Good bye!$", strlen("Logging you out now superman! Good bye!$"));
+                wBytes = write(connFD, "Logging you out now superman! Good bye!$", strlen("Logging you out now superman! Good bye!$"));
                 return false;
             }
         }
@@ -72,23 +72,23 @@ bool admin_operation_handler(int connFD)
 
 bool add_account(int connFD)
 {
-    ssize_t readBytes, writeBytes;
-    char readBuffer[1000], writeBuffer[1000];
-    writeBytes = write(connFD, "Select account type\n1.Normal\n2.joint\n", strlen("Select account type\n1.Normal\n2.joint\n"));
-    if (writeBytes == -1)
+    ssize_t rBytes, wBytes;
+    char rBuffer[1000], wBuffer[1000];
+    wBytes = write(connFD, "Select account type\n1.Normal\n2.joint\n", strlen("Select account type\n1.Normal\n2.joint\n"));
+    if (wBytes == -1)
     {
-        perror("Error writing ADMIN_ADD_ACCOUNT_TYPE message to client!");
+        perror("Error writing admin account type message to client!");
         return false;
     }
 
-    bzero(readBuffer, sizeof(readBuffer));
-    readBytes = read(connFD, &readBuffer, sizeof(readBuffer));
-    if (readBytes == -1)
+    bzero(rBuffer, sizeof(rBuffer));
+    rBytes = read(connFD, &rBuffer, sizeof(rBuffer));
+    if (rBytes == -1)
     {
         perror("Error reading account type response from client!");
         return false;
     }
-    int acc_type = atoi(readBuffer);
+    int acc_type = atoi(rBuffer);
     if (acc_type == 1)
     {
         /***********************************************/
@@ -123,8 +123,8 @@ bool add_account(int connFD)
                 return false;
             }
 
-            readBytes = read(accountFileDescriptor, &prevAccount, sizeof(struct Normal_Account));
-            if (readBytes == -1)
+            rBytes = read(accountFileDescriptor, &prevAccount, sizeof(struct Normal_Account));
+            if (rBytes == -1)
             {
                 perror("Error while reading Normal Account record from file!");
                 return false;
@@ -147,23 +147,23 @@ bool add_account(int connFD)
         accountFileDescriptor = open(NORMAL_ACCOUNTS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
         if (accountFileDescriptor == -1)
         {
-            perror("Error while creating / opening Normal account file!");
+            perror("Error while creating opening Normal account file!");
             return false;
         }
-        writeBytes = write(accountFileDescriptor, &newAccount, sizeof(struct Normal_Account));
-        if (writeBytes == -1)
+        wBytes = write(accountFileDescriptor, &newAccount, sizeof(struct Normal_Account));
+        if (wBytes == -1)
         {
             perror("Error while writing Normal Account record to file!");
             return false;
         }
 
         close(accountFileDescriptor);
-        bzero(writeBuffer, sizeof(writeBuffer));
-        sprintf(writeBuffer, "The newly created account's number is :%d", newAccount.accountNumber);
-        strcat(writeBuffer, "\nRedirecting you to the main menu ...^");
-        writeBytes = write(connFD, writeBuffer, sizeof(writeBuffer));
-        bzero(readBuffer, sizeof(readBuffer));
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+        bzero(wBuffer, sizeof(wBuffer));
+        sprintf(wBuffer, "The newly created account's number is :%d", newAccount.accountNumber);
+        strcat(wBuffer, "\nRedirecting you to the main menu ...^");
+        wBytes = write(connFD, wBuffer, sizeof(wBuffer));
+        bzero(rBuffer, sizeof(rBuffer));
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
         return true;
     }
     else if (acc_type == 2)
@@ -200,8 +200,8 @@ bool add_account(int connFD)
                 return false;
             }
 
-            readBytes = read(accountFileDescriptor, &prevAccount, sizeof(struct Joint_Account));
-            if (readBytes == -1)
+            rBytes = read(accountFileDescriptor, &prevAccount, sizeof(struct Joint_Account));
+            if (rBytes == -1)
             {
                 perror("Error while reading Joint Account record from file!");
                 return false;
@@ -226,23 +226,23 @@ bool add_account(int connFD)
         accountFileDescriptor = open(JOINT_ACCOUNTS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
         if (accountFileDescriptor == -1)
         {
-            perror("Error while creating / opening Joint account file!");
+            perror("Error while creating opening Joint account file!");
             return false;
         }
-        writeBytes = write(accountFileDescriptor, &newAccount, sizeof(struct Joint_Account));
-        if (writeBytes == -1)
+        wBytes = write(accountFileDescriptor, &newAccount, sizeof(struct Joint_Account));
+        if (wBytes == -1)
         {
             perror("Error while writing Joint Account record to file!");
             return false;
         }
 
         close(accountFileDescriptor);
-        bzero(writeBuffer, sizeof(writeBuffer));
-        sprintf(writeBuffer, "The newly created account's number is :%d", newAccount.accountNumber);
-        strcat(writeBuffer, "\nRedirecting you to the main menu ...^");
-        writeBytes = write(connFD, writeBuffer, sizeof(writeBuffer));
-        bzero(readBuffer, sizeof(writeBuffer));
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+        bzero(wBuffer, sizeof(wBuffer));
+        sprintf(wBuffer, "The newly created account's number is :%d", newAccount.accountNumber);
+        strcat(wBuffer, "\nRedirecting you to the main menu ...^");
+        wBytes = write(connFD, wBuffer, sizeof(wBuffer));
+        bzero(rBuffer, sizeof(wBuffer));
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
         return true;
     }
     else
@@ -253,8 +253,8 @@ bool add_account(int connFD)
 
 int add_customer(int connFD, int newAccountNumber)
 {
-    ssize_t readBytes, writeBytes;
-    char readBuffer[1000], writeBuffer[1000];
+    ssize_t rBytes, wBytes;
+    char rBuffer[1000], wBuffer[1000];
 
     struct Customer newCustomer, previousCustomer;
 
@@ -286,8 +286,8 @@ int add_customer(int connFD, int newAccountNumber)
             return false;
         }
 
-        readBytes = read(customerFileDescriptor, &previousCustomer, sizeof(struct Customer));
-        if (readBytes == -1)
+        rBytes = read(customerFileDescriptor, &previousCustomer, sizeof(struct Customer));
+        if (rBytes == -1)
         {
             perror("Error while reading Customer record from file!");
             return false;
@@ -300,31 +300,31 @@ int add_customer(int connFD, int newAccountNumber)
 
         newCustomer.id = previousCustomer.id + 1;
     }
-    bzero(writeBuffer, sizeof(writeBuffer));
-    sprintf(writeBuffer, "Enter the details for the customer\nWhat is the customer's name?");
+    bzero(wBuffer, sizeof(wBuffer));
+    sprintf(wBuffer, "Enter the details for the customer\nWhat is the customer's name?");
 
-    writeBytes = write(connFD, writeBuffer, sizeof(writeBuffer));
-    if (writeBytes == -1)
+    wBytes = write(connFD, wBuffer, sizeof(wBuffer));
+    if (wBytes == -1)
     {
-        perror("Error writing ADMIN_ADD_CUSTOMER_NAME message to client!");
+        perror("Error writing add customer message to client!");
         return false;
     }
-    bzero(readBuffer, sizeof(readBuffer));
-    readBytes = read(connFD, readBuffer, sizeof(readBuffer));
-    if (readBytes == -1)
+    bzero(rBuffer, sizeof(rBuffer));
+    rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+    if (rBytes == -1)
     {
         perror("Error reading customer name response from client!");
         return false;
     }
 
-    strcpy(newCustomer.name, readBuffer);
+    strcpy(newCustomer.name, rBuffer);
     // set account number
     newCustomer.account = newAccountNumber;
 
     strcpy(newCustomer.login, newCustomer.name);
     strcat(newCustomer.login, "-");
-    sprintf(writeBuffer, "%d", newCustomer.id);
-    strcat(newCustomer.login, writeBuffer);
+    sprintf(wBuffer, "%d", newCustomer.id);
+    strcat(newCustomer.login, wBuffer);
     
     printf("\n%d\n", newCustomer.id);
 
@@ -333,11 +333,11 @@ int add_customer(int connFD, int newAccountNumber)
     customerFileDescriptor = open(CUSTOMERS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
     if (customerFileDescriptor == -1)
     {
-        perror("Error while creating / opening customer file!");
+        perror("Error while creating opening customer file!");
         return false;
     }
-    writeBytes = write(customerFileDescriptor, &newCustomer, sizeof(newCustomer));
-    if (writeBytes == -1)
+    wBytes = write(customerFileDescriptor, &newCustomer, sizeof(newCustomer));
+    if (wBytes == -1)
     {
         perror("Error while writing Customer record to file!");
         return false;
@@ -345,41 +345,41 @@ int add_customer(int connFD, int newAccountNumber)
 
     close(customerFileDescriptor);
 
-    bzero(writeBuffer, sizeof(writeBuffer));
-    sprintf(writeBuffer, "The autogenerated login ID for the customer is : %s-%d\nThe autogenerated password for the customer is : %s", newCustomer.name, newCustomer.id, newCustomer.password);
-    strcat(writeBuffer, "^");
-    writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-    if (writeBytes == -1)
+    bzero(wBuffer, sizeof(wBuffer));
+    sprintf(wBuffer, "The autogenerated login ID for the customer is : %s-%d\nThe autogenerated password for the customer is : %s", newCustomer.name, newCustomer.id, newCustomer.password);
+    strcat(wBuffer, "^");
+    wBytes = write(connFD, wBuffer, strlen(wBuffer));
+    if (wBytes == -1)
     {
         perror("Error sending customer loginID and password to the client!");
         return false;
     }
-    bzero(readBuffer, sizeof(readBuffer));
-    readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+    bzero(rBuffer, sizeof(rBuffer));
+    rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
 
     return newCustomer.id;
 }
 
 bool delete_account(int connFD)
 {
-    ssize_t readBytes, writeBytes;
-    char readBuffer[1000], writeBuffer[1000];
+    ssize_t rBytes, wBytes;
+    char rBuffer[1000], wBuffer[1000];
 
-    writeBytes = write(connFD, "Select account type\n1.Normal\n2.joint\n", strlen("Select account type\n1.Normal\n2.joint\n"));
-    if (writeBytes == -1)
+    wBytes = write(connFD, "Select account type\n1.Normal\n2.joint\n", strlen("Select account type\n1.Normal\n2.joint\n"));
+    if (wBytes == -1)
     {
-        perror("Error writing ACCOUNT_TYPE message to client!");
+        perror("Error writing account type message to client!");
         return false;
     }
 
-    bzero(readBuffer, sizeof(readBuffer));
-    readBytes = read(connFD, &readBuffer, sizeof(readBuffer));
-    if (readBytes == -1)
+    bzero(rBuffer, sizeof(rBuffer));
+    rBytes = read(connFD, &rBuffer, sizeof(rBuffer));
+    if (rBytes == -1)
     {
         perror("Error reading account type response from client!");
         return false;
     }
-    int acc_type = atoi(readBuffer);
+    int acc_type = atoi(rBuffer);
 
 
     if(acc_type==1){
@@ -387,37 +387,37 @@ bool delete_account(int connFD)
         /*NORMAL ACCOUNT*/
         /***********************************************/
         struct Normal_Account account;
-        writeBytes = write(connFD, "What is the account number of the account you want to delete?", strlen("What is the account number of the account you want to delete?"));
-        if (writeBytes == -1)
+        wBytes = write(connFD, "What is the account number of the account you want to delete?", strlen("What is the account number of the account you want to delete?"));
+        if (wBytes == -1)
         {
-            perror("Error writing ADMIN_DEL_ACCOUNT_NO to client!");
+            perror("Error writing admin delete account number to client!");
             return false;
         }
 
-        bzero(readBuffer, sizeof(readBuffer));
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer));
-        if (readBytes == -1)
+        bzero(rBuffer, sizeof(rBuffer));
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+        if (rBytes == -1)
         {
             perror("Error reading account number response from the client!");
             return false;
         }
 
-        int accountNumber = atoi(readBuffer);
+        int accountNumber = atoi(rBuffer);
 
         int accountFileDescriptor = open(NORMAL_ACCOUNTS, O_RDONLY);
         if (accountFileDescriptor == -1)
         {
             // Account record doesn't exist
-            bzero(writeBuffer, sizeof(writeBuffer));
-            strcpy(writeBuffer,"No account could be found for the given account number" );
-            strcat(writeBuffer, "^");
-            writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-            if (writeBytes == -1)
+            bzero(wBuffer, sizeof(wBuffer));
+            strcpy(wBuffer,"No account could be found for the given account number" );
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            if (wBytes == -1)
             {
-                perror("Error while writing ACCOUNT_ID_DOESNT_EXIT message to client!");
+                perror("Error while writing account id doesn't exist message to client!");
                 return false;
             }
-            readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
             return false;
         }
 
@@ -425,16 +425,16 @@ bool delete_account(int connFD)
         if (errno == EINVAL)
         {
             // Customer record doesn't exist
-            bzero(writeBuffer, sizeof(writeBuffer));
-            strcpy(writeBuffer, "No account could be found for the given account number");
-            strcat(writeBuffer, "^");
-            writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-            if (writeBytes == -1)
+            bzero(wBuffer, sizeof(wBuffer));
+            strcpy(wBuffer, "No account could be found for the given account number");
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            if (wBytes == -1)
             {
-                perror("Error while writing ACCOUNT_ID_DOESNT_EXIT message to client!");
+                perror("Error while writing account id doesn't exist message to client!");
                 return false;
             }
-            readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
             return false;
         }
         else if (offset == -1)
@@ -451,8 +451,8 @@ bool delete_account(int connFD)
             return false;
         }
 
-        readBytes = read(accountFileDescriptor, &account, sizeof(struct Normal_Account));
-        if (readBytes == -1)
+        rBytes = read(accountFileDescriptor, &account, sizeof(struct Normal_Account));
+        if (rBytes == -1)
         {
             perror("Error while reading Account record from file!");
             return false;
@@ -463,7 +463,7 @@ bool delete_account(int connFD)
 
         close(accountFileDescriptor);
 
-        bzero(writeBuffer, sizeof(writeBuffer));
+        bzero(wBuffer, sizeof(wBuffer));
         if (account.balance == 0)
         {
             // No money, hence can close account
@@ -492,8 +492,8 @@ bool delete_account(int connFD)
                 return false;
             }
 
-            writeBytes = write(accountFileDescriptor, &account, sizeof(struct Normal_Account));
-            if (writeBytes == -1)
+            wBytes = write(accountFileDescriptor, &account, sizeof(struct Normal_Account));
+            if (wBytes == -1)
             {
                 perror("Error deleting account record!");
                 return false;
@@ -502,19 +502,19 @@ bool delete_account(int connFD)
             lock.l_type = F_UNLCK;
             fcntl(accountFileDescriptor, F_SETLK, &lock);
 
-            strcpy(writeBuffer, "This account has been successfully deleted\nRedirecting you to the main menu ...^");
+            strcpy(wBuffer, "This account has been successfully deleted\nRedirecting you to the main menu ...^");
         }
         else{
             // Account has some money ask customer to withdraw it
-            strcpy(writeBuffer, "This account cannot be deleted since it still has some money\nRedirecting you to the main menu ...^");
+            strcpy(wBuffer, "This account cannot be deleted since it still has some money\nRedirecting you to the main menu ...^");
         }
-        writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-        if (writeBytes == -1)
+        wBytes = write(connFD, wBuffer, strlen(wBuffer));
+        if (wBytes == -1)
         {
             perror("Error while writing final DEL message to client!");
             return false;
         }
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
         return true;
     }
     else if (acc_type==2){
@@ -522,37 +522,37 @@ bool delete_account(int connFD)
         /*Joint ACCOUNT*/
         /***********************************************/
         struct Joint_Account account;
-        writeBytes = write(1, "What is the account number of the account you want to delete?", strlen("What is the account number of the account you want to delete?"));
-        if (writeBytes == -1)
+        wBytes = write(1, "What is the account number of the account you want to delete?", strlen("What is the account number of the account you want to delete?"));
+        if (wBytes == -1)
         {
             perror("Error writing ADMIN_DEL_ACCOUNT_NO to client!");
             return false;
         }
 
-        bzero(readBuffer, sizeof(readBuffer));
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer));
-        if (readBytes == -1)
+        bzero(rBuffer, sizeof(rBuffer));
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+        if (rBytes == -1)
         {
             perror("Error reading account number response from the client!");
             return false;
         }
 
-        int accountNumber = atoi(readBuffer);
+        int accountNumber = atoi(rBuffer);
 
         int accountFileDescriptor = open(JOINT_ACCOUNTS, O_RDONLY);
         if (accountFileDescriptor == -1)
         {
             // Account record doesn't exist
-            bzero(writeBuffer, sizeof(writeBuffer));
-            strcpy(writeBuffer, "No account could be found for the given account number");
-            strcat(writeBuffer, "^");
-            writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-            if (writeBytes == -1)
+            bzero(wBuffer, sizeof(wBuffer));
+            strcpy(wBuffer, "No account could be found for the given account number");
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            if (wBytes == -1)
             {
-                perror("Error while writing ACCOUNT_ID_DOESNT_EXIT message to client!");
+                perror("Error while writing account id doesn't exist message to client!");
                 return false;
             }
-            readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
             return false;
         }
 
@@ -560,16 +560,16 @@ bool delete_account(int connFD)
         if (errno == EINVAL)
         {
             // Customer record doesn't exist
-            bzero(writeBuffer, sizeof(writeBuffer));
-            strcpy(writeBuffer, "No account could be found for the given account number");
-            strcat(writeBuffer, "^");
-            writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-            if (writeBytes == -1)
+            bzero(wBuffer, sizeof(wBuffer));
+            strcpy(wBuffer, "No account could be found for the given account number");
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            if (wBytes == -1)
             {
-                perror("Error while writing ACCOUNT_ID_DOESNT_EXIT message to client!");
+                perror("Error while writing account id doesn't exist message to client!");
                 return false;
             }
-            readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
             return false;
         }
         else if (offset == -1)
@@ -586,8 +586,8 @@ bool delete_account(int connFD)
             return false;
         }
 
-        readBytes = read(accountFileDescriptor, &account, sizeof(struct Joint_Account));
-        if (readBytes == -1)
+        rBytes = read(accountFileDescriptor, &account, sizeof(struct Joint_Account));
+        if (rBytes == -1)
         {
             perror("Error while reading Account record from file!");
             return false;
@@ -598,7 +598,7 @@ bool delete_account(int connFD)
 
         close(accountFileDescriptor);
 
-        bzero(writeBuffer, sizeof(writeBuffer));
+        bzero(wBuffer, sizeof(wBuffer));
         if (account.balance == 0)
         {
             // No money, hence can close account
@@ -627,8 +627,8 @@ bool delete_account(int connFD)
                 return false;
             }
 
-            writeBytes = write(accountFileDescriptor, &account, sizeof(struct Joint_Account));
-            if (writeBytes == -1)
+            wBytes = write(accountFileDescriptor, &account, sizeof(struct Joint_Account));
+            if (wBytes == -1)
             {
                 perror("Error deleting account record!");
                 return false;
@@ -637,20 +637,20 @@ bool delete_account(int connFD)
             lock.l_type = F_UNLCK;
             fcntl(accountFileDescriptor, F_SETLK, &lock);
 
-            strcpy(writeBuffer, "This account has been successfully deleted\nRedirecting you to the main menu ...^");
+            strcpy(wBuffer, "This account has been successfully deleted\nRedirecting you to the main menu ...^");
         }
         else
         {
             // Account has some money ask customer to withdraw it
-            strcpy(writeBuffer, "This account cannot be deleted since it still has some money\nRedirecting you to the main menu ...^");
+            strcpy(wBuffer, "This account cannot be deleted since it still has some money\nRedirecting you to the main menu ...^");
         }
-        writeBytes = write(connFD, writeBuffer, strlen(writeBuffer));
-        if (writeBytes == -1)
+        wBytes = write(connFD, wBuffer, strlen(wBuffer));
+        if (wBytes == -1)
         {
             perror("Error while writing final DEL message to client!");
             return false;
         }
-        readBytes = read(connFD, readBuffer, sizeof(readBuffer)); // Dummy read
+        rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
         return true;
     }
     else{
