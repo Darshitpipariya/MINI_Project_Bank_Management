@@ -13,17 +13,22 @@
 #include "./ACCOUNTS/JOINT/Joint_Struct.h"
 #include "./ACCOUNTS/NORMAL/Normal_Struct.h"
 #include "./CUSTOMERs/customer.h"
+#include "./ACCOUNTS/JOINT/Joint_transaction.h"
+#include "./ACCOUNTS/NORMAL/Normal_transaction.h"
 #define NORMAL_ACCOUNTS "./ACCOUNTS/NORMAL/Normalaccount.txt"
 #define JOINT_ACCOUNTS "./ACCOUNTS/JOINT/Jointaccount.txt"
 #define CUSTOMERS "./CUSTOMERs/customer.txt"
 #define ADMIN_LOGIN_ID "admin"
 #define ADMIN_PASSWORD "admin"
 #define AUTOGEN_PASSWORD "admin"
+#define NORMAL_TRANSACTION_FILE "./ACCOUNTS/NORMAL/NormalaccountTransaction.txt"
+#define JOINT_TRANSACTION_FILE "./ACCOUNTS/JOINT/JointaccountTransaction.txt"
 
 bool login(bool isAdmin, int connFD, struct Customer *ptrToCustomer);
 bool get_Normal_account_details(int connFD, struct Normal_Account *customerAccount);
 bool get_Joint_account_details(int connFD, struct Joint_Account *customerAccount);
 bool get_customer_details(int connFD, int customerID);
+bool get_transaction_details(int connFD, int accountNumber, int acctype);
 
 bool login(bool isAdmin, int connFD, struct Customer *ptrToCustomerID)
 {
@@ -502,6 +507,224 @@ bool get_customer_details(int connFD, int customerID)
 
     rBytes = read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
     return true;
+}
+
+bool get_transaction_details(int connFD, int accountNumber,int acctype)
+{
+
+    ssize_t rBytes, wBytes;                               // Number of bytes read from / written to the socket
+    char rBuffer[1000], wBuffer[10000], tBuffer[1000]; // A buffer for reading from / writing to the socket
+    if(acctype==1){
+        /***********************************************/
+        /*NORMAL CUSTOMER*/
+        /***********************************************/
+        struct Normal_Account account;
+        if (accountNumber == -1)
+        {
+            // Get the accountNumber
+            wBytes = write(connFD, "Enter the account number of the account you're searching for", strlen("Enter the account number of the account you're searching for"));
+            if (wBytes == -1)
+            {
+                perror("Error writing GET_ACCOUNT_NUMBER message to client!");
+                return false;
+            }
+
+            bzero(rBuffer, sizeof(rBuffer));
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+            if (rBytes == -1)
+            {
+                perror("Error reading account number response from client!");
+                return false;
+            }
+
+            account.accountNumber = atoi(rBuffer);
+        }
+        else
+            account.accountNumber = accountNumber;
+
+        if (get_Normal_account_details(connFD, &account))
+        {
+            int iter;
+
+            struct Normal_Transaction transaction;
+            struct tm transactionTime;
+
+            bzero(wBuffer, sizeof(rBuffer));
+
+            int transactionFileDescriptor = open(NORMAL_TRANSACTION_FILE, O_RDONLY);
+            if (transactionFileDescriptor == -1)
+            {
+                perror("Error while opening transaction file!");
+                write(connFD, "No transactions were performed on this account by the customer!^", strlen("No transactions were performed on this account by the customer!^"));
+                read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+                return false;
+            }
+
+            for (iter = 0; iter < 5 && account.transactions[iter] != -1; iter++)
+            {
+
+                int offset = lseek(transactionFileDescriptor, account.transactions[iter] * sizeof(struct Normal_Transaction), SEEK_SET);
+                if (offset == -1)
+                {
+                    perror("Error while seeking to required transaction record!");
+                    return false;
+                }
+
+                struct flock lock = {F_RDLCK, SEEK_SET, offset, sizeof(struct Normal_Transaction), getpid()};
+
+                int lockingStatus = fcntl(transactionFileDescriptor, F_SETLKW, &lock);
+                if (lockingStatus == -1)
+                {
+                    perror("Error obtaining read lock on transaction record!");
+                    return false;
+                }
+
+                rBytes = read(transactionFileDescriptor, &transaction, sizeof(struct Normal_Transaction));
+                if (rBytes == -1)
+                {
+                    perror("Error reading transaction record from file!");
+                    return false;
+                }
+
+                lock.l_type = F_UNLCK;
+                fcntl(transactionFileDescriptor, F_SETLK, &lock);
+
+                transactionTime = *localtime(&(transaction.transactionTime));
+
+                bzero(tBuffer, sizeof(tBuffer));
+                sprintf(tBuffer, "Details of transaction %d - \n\t Date : %d:%d %d/%d/%d \n\t Operation : %s \n\t Balance - \n\t\t Before : %ld \n\t\t After : %ld \n\t\t Difference : %ld\n", (iter + 1), transactionTime.tm_hour, transactionTime.tm_min, transactionTime.tm_mday, transactionTime.tm_mon, transactionTime.tm_year, (transaction.operation ? "Deposit" : "Withdraw"), transaction.oldBalance, transaction.newBalance, (transaction.newBalance - transaction.oldBalance));
+
+                if (strlen(wBuffer) == 0)
+                    strcpy(wBuffer, tBuffer);
+                else
+                    strcat(wBuffer, tBuffer);
+            }
+
+            close(transactionFileDescriptor);
+        }
+
+        if (strlen(wBuffer) == 0)
+        {
+            write(connFD, "No transactions were performed on this account by the customer!^", strlen("No transactions were performed on this account by the customer!^"));
+            read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+            return false;
+        }
+        else
+        {
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+            return true;
+        }
+    }
+    else if(acctype==2){
+        /***********************************************/
+        /*JOINT CUSTOMER*/
+        /***********************************************/
+        struct Joint_Account account;
+        if (accountNumber == -1)
+        {
+            // Get the accountNumber
+            wBytes = write(connFD, "Enter the account number of the account you're searching for", strlen("Enter the account number of the account you're searching for"));
+            if (wBytes == -1)
+            {
+                perror("Error writing GET_ACCOUNT_NUMBER message to client!");
+                return false;
+            }
+
+            bzero(rBuffer, sizeof(rBuffer));
+            rBytes = read(connFD, rBuffer, sizeof(rBuffer));
+            if (rBytes == -1)
+            {
+                perror("Error reading account number response from client!");
+                return false;
+            }
+
+            account.accountNumber = atoi(rBuffer);
+        }
+        else
+            account.accountNumber = accountNumber;
+
+        if (get_Joint_account_details(connFD, &account))
+        {
+            int iter;
+
+            struct Joint_Transaction transaction;
+            struct tm transactionTime;
+
+            bzero(wBuffer, sizeof(rBuffer));
+
+            int transactionFileDescriptor = open(JOINT_TRANSACTION_FILE, O_RDONLY);
+            if (transactionFileDescriptor == -1)
+            {
+                perror("Error while opening transaction file!");
+                write(connFD, "No transactions were performed on this account by the customer!^", strlen("No transactions were performed on this account by the customer!^"));
+                read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+                return false;
+            }
+
+            for (iter = 0; iter < 5 && account.transactions[iter] != -1; iter++)
+            {
+
+                int offset = lseek(transactionFileDescriptor, account.transactions[iter] * sizeof(struct Joint_Transaction), SEEK_SET);
+                if (offset == -1)
+                {
+                    perror("Error while seeking to required transaction record!");
+                    return false;
+                }
+
+                struct flock lock = {F_RDLCK, SEEK_SET, offset, sizeof(struct Joint_Transaction), getpid()};
+
+                int lockingStatus = fcntl(transactionFileDescriptor, F_SETLKW, &lock);
+                if (lockingStatus == -1)
+                {
+                    perror("Error obtaining read lock on transaction record!");
+                    return false;
+                }
+
+                rBytes = read(transactionFileDescriptor, &transaction, sizeof(struct Joint_Transaction));
+                if (rBytes == -1)
+                {
+                    perror("Error reading transaction record from file!");
+                    return false;
+                }
+
+                lock.l_type = F_UNLCK;
+                fcntl(transactionFileDescriptor, F_SETLK, &lock);
+
+                transactionTime = *localtime(&(transaction.transactionTime));
+
+                bzero(tBuffer, sizeof(tBuffer));
+                sprintf(tBuffer, "Details of transaction %d - \n\t Date : %d:%d %d/%d/%d \n\t Operation : %s \n\t Balance - \n\t\t Before : %ld \n\t\t After : %ld \n\t\t Difference : %ld\n", (iter + 1), transactionTime.tm_hour, transactionTime.tm_min, transactionTime.tm_mday, transactionTime.tm_mon, transactionTime.tm_year, (transaction.operation ? "Deposit" : "Withdraw"), transaction.oldBalance, transaction.newBalance, (transaction.newBalance - transaction.oldBalance));
+
+                if (strlen(wBuffer) == 0)
+                    strcpy(wBuffer, tBuffer);
+                else
+                    strcat(wBuffer, tBuffer);
+            }
+
+            close(transactionFileDescriptor);
+        }
+
+        if (strlen(wBuffer) == 0)
+        {
+            write(connFD, "No transactions were performed on this account by the customer!^", strlen("No transactions were performed on this account by the customer!^"));
+            read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+            return false;
+        }
+        else
+        {
+            strcat(wBuffer, "^");
+            wBytes = write(connFD, wBuffer, strlen(wBuffer));
+            read(connFD, rBuffer, sizeof(rBuffer)); // Dummy read
+            return true;
+        }
+    }
+    else
+    {
+        return false;
+    }
+    
 }
 // =====================================================
 

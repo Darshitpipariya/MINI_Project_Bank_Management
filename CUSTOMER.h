@@ -12,6 +12,8 @@ bool get_balance(int connFD, int acc_type);
 bool change_password(int connFD);
 bool lock_critical_section(struct sembuf *semOp);
 bool unlock_critical_section(struct sembuf *sem_op);
+void write_transaction_to_array(int *transactionArray, int ID);
+int write_transaction_to_file(int accountNumber, long int oldBalance, long int newBalance, bool operation, int acc_type);
 bool customer_operation(int connFD)
 {
     if (login(false, connFD, &loggedInCustomer))
@@ -69,7 +71,7 @@ bool customer_operation(int connFD)
         while (1)
         {
             strcat(wBuffer, "\n");
-            strcat(wBuffer, "1. Get Customer Details\n2. Deposit Money\n3. Withdraw Money\n4. Get Balance\n5. Change Password\nPress any other key to logout");
+            strcat(wBuffer, "1. Get Customer Details\n2. Deposit Money\n3. Withdraw Money\n4. Get Balance\n5. Change Password\n6. Get transaction details\nPress any other key to logout");
             wBytes = write(connFD, wBuffer, strlen(wBuffer));
             if (wBytes == -1)
             {
@@ -104,6 +106,9 @@ bool customer_operation(int connFD)
                 break;
             case 5:
                 change_password(connFD);
+                break;
+            case 6:
+                get_transaction_details(connFD, loggedInCustomer.account, acc_type);
                 break;
             default:
                 wBytes = write(connFD, "Logging you out now dear customer! Good bye!$", strlen("Logging you out now dear customer! Good bye!$"));
@@ -163,6 +168,8 @@ bool deposit(int connFD,int acc_type)
                 depositAmount = atol(rBuffer);
                 if (depositAmount != 0)
                 {
+                    int newTransactionID = write_transaction_to_file(account.accountNumber, account.balance, account.balance + depositAmount, 1,acc_type);
+                    write_transaction_to_array(account.transactions, newTransactionID);
                     account.balance += depositAmount;
 
                     int accountFileDescriptor = open(NORMAL_ACCOUNTS, O_WRONLY);
@@ -253,6 +260,8 @@ bool deposit(int connFD,int acc_type)
                 depositAmount = atol(rBuffer);
                 if (depositAmount != 0)
                 {
+                    int newTransactionID = write_transaction_to_file(account.accountNumber, account.balance, account.balance + depositAmount, 1, acc_type);
+                    write_transaction_to_array(account.transactions, newTransactionID);
                     account.balance += depositAmount;
 
                     int accountFileDescriptor = open(JOINT_ACCOUNTS, O_WRONLY);
@@ -353,6 +362,8 @@ bool withdraw(int connFD, int acc_type)
 
                 if (withdrawAmount != 0 && account.balance - withdrawAmount >= 0)
                 {
+                    int newTransactionID = write_transaction_to_file(account.accountNumber, account.balance, account.balance - withdrawAmount, 0,acc_type);
+                    write_transaction_to_array(account.transactions, newTransactionID);
                     account.balance -= withdrawAmount;
 
                     int accountFileDescriptor = open(NORMAL_ACCOUNTS, O_WRONLY);
@@ -442,6 +453,8 @@ bool withdraw(int connFD, int acc_type)
 
                 if (withdrawAmount != 0 && account.balance - withdrawAmount >= 0)
                 {
+                    int newTransactionID = write_transaction_to_file(account.accountNumber, account.balance, account.balance - withdrawAmount, 0,acc_type);
+                    write_transaction_to_array(account.transactions, newTransactionID);
                     account.balance -= withdrawAmount;
 
                     int accountFileDescriptor = open(JOINT_ACCOUNTS, O_WRONLY);
@@ -692,6 +705,98 @@ bool change_password(int connFD)
     unlock_critical_section(&semOp);
 
     return false;
+}
+
+void write_transaction_to_array(int *transactionArray, int ID)
+{
+    // Check if there's any free space in the array to write the new transaction ID
+    int iter = 0;
+    while (transactionArray[iter] != -1 && iter<5)
+        iter++;
+
+    if (iter >= 5)
+    {
+        // No space
+        for (iter = 1; iter < 5; iter++)
+            // Shift elements one step back discarding the oldest transaction
+            transactionArray[iter - 1] = transactionArray[iter];
+        transactionArray[iter - 1] = ID;
+    }
+    else
+    {
+        // Space available
+        transactionArray[iter] = ID;
+    }
+}
+
+int write_transaction_to_file(int accountNumber, long int oldBalance, long int newBalance, bool operation,int acc_type)
+{
+    if(acc_type==1){
+        /***********************************************/
+        /*NORMAL CUSTOMER*/
+        /***********************************************/
+        struct Normal_Transaction newTransaction;
+        newTransaction.accountNumber = accountNumber;
+        newTransaction.oldBalance = oldBalance;
+        newTransaction.newBalance = newBalance;
+        newTransaction.operation = operation;
+        newTransaction.transactionTime = time(NULL);
+
+        ssize_t rBytes, wBytes;
+
+        int transactionFileDescriptor = open(NORMAL_TRANSACTION_FILE, O_CREAT | O_APPEND | O_RDWR, S_IRWXU);
+
+        // Get most recent transaction number
+        off_t offset = lseek(transactionFileDescriptor, -sizeof(struct Normal_Transaction), SEEK_END);
+        if (offset >= 0)
+        {
+            // There exists at least one transaction record
+            struct Normal_Transaction prevTransaction;
+            rBytes = read(transactionFileDescriptor, &prevTransaction, sizeof(struct Normal_Transaction));
+
+            newTransaction.transactionID = prevTransaction.transactionID + 1;
+        }
+        else
+            // No transaction records exist
+            newTransaction.transactionID = 0;
+
+        wBytes = write(transactionFileDescriptor, &newTransaction, sizeof(struct Normal_Transaction));
+
+        return newTransaction.transactionID;
+    }
+    else if(acc_type==2){
+        /***********************************************/
+        /*Joint CUSTOMER*/
+        /***********************************************/
+        struct Joint_Transaction newTransaction;
+        newTransaction.accountNumber = accountNumber;
+        newTransaction.oldBalance = oldBalance;
+        newTransaction.newBalance = newBalance;
+        newTransaction.operation = operation;
+        newTransaction.transactionTime = time(NULL);
+
+        ssize_t rBytes, wBytes;
+
+        int transactionFileDescriptor = open(JOINT_TRANSACTION_FILE, O_CREAT | O_APPEND | O_RDWR, S_IRWXU);
+
+        // Get most recent transaction number
+        off_t offset = lseek(transactionFileDescriptor, -sizeof(struct Joint_Transaction), SEEK_END);
+        if (offset >= 0)
+        {
+            // There exists at least one transaction record
+            struct Joint_Transaction prevTransaction;
+            rBytes = read(transactionFileDescriptor, &prevTransaction, sizeof(struct Joint_Transaction));
+
+            newTransaction.transactionID = prevTransaction.transactionID + 1;
+        }
+        else
+            // No transaction records exist
+            newTransaction.transactionID = 0;
+
+        wBytes = write(transactionFileDescriptor, &newTransaction, sizeof(struct Joint_Transaction));
+
+        return newTransaction.transactionID;
+    }
 }
 
 bool lock_critical_section(struct sembuf *semOp)

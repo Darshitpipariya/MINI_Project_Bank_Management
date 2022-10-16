@@ -22,7 +22,7 @@ bool admin_operation(int connFD)
         while (1)
         {
             strcat(wBuffer, "\n");
-            strcat(wBuffer, "1. Get Customer Details\n2. Get Normal Account Details\n3. Get Joint Account Details\n4. Add Account\n5. Delete Account\nPress any other key to logout");
+            strcat(wBuffer, "1. Get Customer Details\n2. Get Normal Account Details\n3. Get Joint Account Details\n4. Add Account\n5. Delete Account\n6. Get Normal Account Transaction Details\n7. Get Joint Account Transcation Details\nPress any other key to logout");
             wBytes = write(connFD, wBuffer, strlen(wBuffer));
             if (wBytes == -1)
             {
@@ -55,6 +55,12 @@ bool admin_operation(int connFD)
                 break;
             case 5:
                 delete_account(connFD);
+                break;
+            case 6:
+                get_transaction_details(connFD,-1,1);
+                break;
+            case 7:
+                get_transaction_details(connFD,-1,2);
                 break;
             default:
                 wBytes = write(connFD, "Logging you out now superman! Good bye!$", strlen("Logging you out now superman! Good bye!$"));
@@ -143,6 +149,7 @@ bool add_account(int connFD)
         newAccount.active = true;
         // set balance
         newAccount.balance = 0;
+        memset(newAccount.transactions, -1, 5 * sizeof(int));
 
         accountFileDescriptor = open(NORMAL_ACCOUNTS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
         if (accountFileDescriptor == -1)
@@ -222,7 +229,7 @@ bool add_account(int connFD)
         newAccount.active = true;
         // set balance
         newAccount.balance = 0;
-
+        memset(newAccount.transactions, -1, 5 * sizeof(int));
         accountFileDescriptor = open(JOINT_ACCOUNTS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
         if (accountFileDescriptor == -1)
         {

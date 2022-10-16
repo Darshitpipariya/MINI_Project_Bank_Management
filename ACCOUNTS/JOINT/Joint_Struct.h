@@ -9,6 +9,7 @@ struct Joint_Account
     int owner_2;       // Customer 2 ID
     bool active;       // 1 -> Active, 0 -> Deactivated (Deleted)
     long int balance;  // Amount of money in the account
+    int transactions[5]; //transaction id's
 };
 
 #endif
