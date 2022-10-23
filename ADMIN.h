@@ -334,9 +334,7 @@ int add_customer(int connFD, int newAccountNumber)
     strcat(newCustomer.login, wBuffer);
     
     printf("\n%d\n", newCustomer.id);
-
     strcpy(newCustomer.password, AUTOGEN_PASSWORD);
-
     customerFileDescriptor = open(CUSTOMERS, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU);
     if (customerFileDescriptor == -1)
     {
